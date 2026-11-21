@@ -13,23 +13,34 @@ use windows::Win32::UI::HiDpi::{
     SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW,
-    PostQuitMessage, RegisterClassW, RegisterWindowMessageW, TranslateMessage, MSG,
-    WINDOW_EX_STYLE, WM_CONTEXTMENU, WM_DESTROY, WM_DISPLAYCHANGE, WM_HOTKEY, WM_LBUTTONDBLCLK,
-    WM_RBUTTONUP, WNDCLASSW, WS_OVERLAPPED,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, KillTimer,
+    PostQuitMessage, RegisterClassW, RegisterWindowMessageW, SetTimer, TranslateMessage,
+    DBT_DEVNODES_CHANGED, MSG, WINDOW_EX_STYLE, WM_CONTEXTMENU, WM_DESTROY, WM_DEVICECHANGE,
+    WM_DISPLAYCHANGE, WM_HOTKEY, WM_LBUTTONDBLCLK, WM_RBUTTONUP, WM_TIMER, WNDCLASSW,
+    WS_OVERLAPPED,
 };
 
 use crate::config::{self, Config, OverlayMode};
 use crate::model::{self, Device};
 use crate::overlay::{Overlay, TopmostGuard};
-use crate::{hotkey, tray};
+use crate::{hotkey, providers, tray};
 
 const HOTKEY_ID: i32 = 1;
+const POLL_TIMER: usize = 1;
+/// One-shot re-poll once a burst of device-change messages has settled.
+const DEVICE_CHANGE_TIMER: usize = 2;
+const DEVICE_CHANGE_DELAY_MS: u32 = 250;
+/// Second re-poll: Windows publishes a newly connected device's battery level
+/// a moment after the device itself appears.
+const DEVICE_SETTLE_TIMER: usize = 3;
+const DEVICE_SETTLE_DELAY_MS: u32 = 3000;
 
 struct App {
     config: Config,
     config_path: PathBuf,
     devices: Vec<Device>,
+    /// Shows placeholder devices instead of polling (`--demo`).
+    demo: bool,
     hud: Overlay,
     hud_visible: bool,
     tray: tray::Tray,
@@ -46,7 +57,7 @@ fn with_app<R>(f: impl FnOnce(&mut App) -> R) -> Option<R> {
     APP.with(|app| app.try_borrow_mut().ok()?.as_mut().map(f))
 }
 
-pub fn run() -> Result<()> {
+pub fn run(demo: bool) -> Result<()> {
     unsafe {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     }
@@ -76,11 +87,15 @@ pub fn run() -> Result<()> {
         hud_visible: config.mode == OverlayMode::HudAndAlerts,
         config,
         config_path,
-        devices: model::fake_devices(),
+        devices: if demo { model::fake_devices() } else { providers::poll_all() },
+        demo,
         hud,
         tray: tray::Tray::add(hwnd)?,
     };
     app.refresh_hud();
+    if !demo {
+        unsafe { SetTimer(hwnd, POLL_TIMER, app.config.poll_interval_secs as u32 * 1000, None) };
+    }
     APP.with(|a| *a.borrow_mut() = Some(app));
 
     let mut msg = MSG::default();
@@ -103,6 +118,18 @@ impl App {
             self.hud.hide();
         } else if let Err(e) = self.hud.show_hud(&self.devices, &self.config) {
             eprintln!("failed to draw HUD: {e}");
+        }
+    }
+
+    /// Re-reads all providers and redraws only if something changed.
+    fn poll(&mut self) {
+        if self.demo {
+            return;
+        }
+        let devices = providers::poll_all();
+        if devices != self.devices {
+            self.devices = devices;
+            self.refresh_hud();
         }
     }
 
@@ -205,6 +232,26 @@ unsafe extern "system" fn main_wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
         WM_HOTKEY if wparam.0 == HOTKEY_ID as usize => {
             with_app(App::toggle_hud);
             LRESULT(0)
+        }
+        WM_TIMER if wparam.0 == POLL_TIMER => {
+            with_app(App::poll);
+            LRESULT(0)
+        }
+        WM_TIMER if wparam.0 == DEVICE_CHANGE_TIMER => {
+            let _ = KillTimer(hwnd, DEVICE_CHANGE_TIMER);
+            with_app(App::poll);
+            SetTimer(hwnd, DEVICE_SETTLE_TIMER, DEVICE_SETTLE_DELAY_MS, None);
+            LRESULT(0)
+        }
+        WM_TIMER if wparam.0 == DEVICE_SETTLE_TIMER => {
+            let _ = KillTimer(hwnd, DEVICE_SETTLE_TIMER);
+            with_app(App::poll);
+            LRESULT(0)
+        }
+        // A device connected or disconnected; re-arming the timer debounces bursts.
+        WM_DEVICECHANGE if wparam.0 == DBT_DEVNODES_CHANGED as usize => {
+            SetTimer(hwnd, DEVICE_CHANGE_TIMER, DEVICE_CHANGE_DELAY_MS, None);
+            LRESULT(1)
         }
         // Resolution, DPI or monitor layout changed: re-place the HUD.
         WM_DISPLAYCHANGE => {
