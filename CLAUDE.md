@@ -1,6 +1,6 @@
 # Battery Overlay
 
-Windows tray/overlay app (Rust) that shows battery levels of wireless devices (Bluetooth, Xbox, Logitech/Razer/SteelSeries/Corsair dongles; ATK/Lamzu best-effort) and alerts when low — must stay visible over fullscreen/borderless games.
+Windows tray/overlay app (Rust) that shows battery levels of wireless devices (Bluetooth, Xbox, Logitech/Razer/SteelSeries/Corsair/Lamzu dongles; ATK best-effort) and alerts when low — must stay visible over fullscreen/borderless games.
 
 ## Hard constraints
 - Performance first: idle RAM < 15 MB, 0% CPU between polls, redraw only on change. Main process = raw Win32 + Direct2D/DirectComposition via `windows` crate; heavy UI (egui settings) runs only as a separate `--settings` process.
@@ -22,6 +22,6 @@ Windows tray/overlay app (Rust) that shows battery levels of wireless devices (B
 - Bluetooth reads Windows' undocumented device-node properties via CfgMgr32 (battery `{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2`, connected `{83DA6326-97A6-4088-9453-A1923F573B29} 15`) — no GATT/WinRT. Levels stay after disconnect, so disconnected devices are hidden. No charging info is exposed for Bluetooth; charging comes from vendor protocols.
 - Battery changes raise no OS event: levels refresh only on the poll timer; `WM_DEVICECHANGE` triggers re-polls at 250 ms and 3 s (Windows publishes the level late).
 - `poll_all()` runs on a short-lived worker thread (vendor HID replies can take up to 500 ms per request) and posts `WM_POLLED` back; at most one poll runs at a time.
-- Vendor providers (Logitech HID++, Razer, SteelSeries, Corsair) share `hid.rs`: USB only (Bluetooth HID is left to the Bluetooth provider), filtered by vendor ID before opening, opened shared. Protocol logic is written against the `Channel`/`FeatureChannel` traits and tested with `MockChannel`; replies are matched by content because every open handle sees every input report (including G Hub's/iCUE's traffic).
+- Vendor providers (Logitech HID++, Razer, SteelSeries, Corsair, Lamzu) share `hid.rs`: USB only (Bluetooth HID is left to the Bluetooth provider), filtered by vendor ID before opening, opened shared. Protocol logic is written against the `Channel`/`FeatureChannel` traits and tested with `MockChannel`; replies are matched by content because every open handle sees every input report (including G Hub's/iCUE's traffic).
 - Xbox uses XInput (4 coarse levels mapped to 5/20/60/100 %); Bluetooth-paired Xbox controllers are de-duplicated in favour of the Bluetooth reading.
-- SteelSeries and Corsair byte layouts are best-effort and unverified on hardware; ATK/Lamzu have no implementation yet.
+- SteelSeries and Corsair byte layouts are best-effort and unverified on hardware. Lamzu was decoded from a USB capture of the Maya X web driver and verified on it (level, charging on the cable, hidden when switched off). ATK has no implementation yet.

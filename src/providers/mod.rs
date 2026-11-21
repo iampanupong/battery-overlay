@@ -4,6 +4,7 @@
 pub mod bluetooth;
 pub mod corsair;
 pub mod hid;
+pub mod lamzu;
 pub mod logitech;
 pub mod razer;
 pub mod steelseries;
@@ -24,6 +25,7 @@ pub fn poll_all() -> Vec<Device> {
     devices.extend(razer::poll(&collections));
     devices.extend(steelseries::poll(&collections));
     devices.extend(corsair::poll(&collections));
+    devices.extend(lamzu::poll(&collections));
     sort(&mut devices);
     devices
 }

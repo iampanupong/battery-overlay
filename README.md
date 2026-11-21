@@ -7,7 +7,7 @@ A lightweight Windows tray app that shows the battery levels of your wireless de
 ## Planned device support
 - Bluetooth (BLE and Classic) devices
 - Xbox wireless controllers
-- Vendor dongles: Logitech, Razer, SteelSeries, Corsair (ATK and Lamzu best-effort)
+- Vendor dongles: Logitech, Razer, SteelSeries, Corsair, Lamzu (ATK best-effort)
 
 ## Build
 Runs on Windows 10/11 only. You can cross-compile it from macOS or Linux with [cargo-xwin](https://github.com/rust-cross/cargo-xwin):
