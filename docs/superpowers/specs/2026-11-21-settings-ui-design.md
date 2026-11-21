@@ -36,3 +36,9 @@ Let the user change the HUD's position, opacity, size and the overlay mode from 
 - Throttling saves during slider drags (e.g., ≤ ~10 saves/s) and tolerating a failed rename while the main app is reading — builder's call.
 - Window size, layout and labels.
 - Whether the main app reloads hotkey/poll interval too on the message (not required).
+
+## Revision 2026-11-22 (after first Windows test)
+Feedback: sliders weren't smooth; the window looked bad.
+- **Smooth preview:** while a slider is dragged, the settings window posts `BatteryOverlay.Preview` with mode/corner/opacity %/size % packed into `wparam` — no file I/O. The main window applies only the newest queued preview. The file is saved when a slider is released (or on a click / keyboard step). The overlay now draws before moving/resizing its window, so size changes don't flash a stretched frame.
+- **New look:** dark palette from the HUD (`#121418` background, `#4DD973` accent), Segoe UI, section cards, a segmented mode control with a one-line hint, a clickable mini-screen corner picker, full-width sliders with the value beside the label, "Reset to defaults" and a save status. Typing slider values was dropped.
+- `--demo` keeps showing placeholder devices by design; real devices appear without `--demo`.
