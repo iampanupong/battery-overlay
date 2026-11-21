@@ -1,13 +1,15 @@
-//! Lamzu wireless mice through their 2.4 GHz dongle (Maya X verified).
+//! Lamzu wireless mice, through their 2.4 GHz dongle or on the cable
+//! (Maya X verified).
 //!
 //! Lamzu publishes no protocol; this layout was read from a USB capture of
 //! the Maya X web driver. The dongle's settings collection takes 64-byte
 //! feature reports (report ID 0). Requests are `00 00 target len class cmd
 //! params…`; replies are `A1 00 target len class cmd` followed by `len` data
-//! bytes. Target 0x02 is the mouse behind the dongle. Only the battery
+//! bytes. Target 0x02 is the mouse, behind the dongle or on the cable (while
+//! it's on the cable the dongle stops answering). Only the battery
 //! command (class 0x00, cmd 0x83) is ever sent, so the mouse's settings are
-//! never touched. Its data is a charging flag, then the level in percent;
-//! the flag has only been seen as 0 (not charging) and is unverified.
+//! never touched. Its data is a charging flag (1 on the cable), then the
+//! level in percent.
 
 use super::hid::FeatureChannel;
 
@@ -72,8 +74,8 @@ mod win {
     pub fn poll(collections: &[HidInfo]) -> Vec<Device> {
         let mut done = BTreeSet::new();
         let mut devices = Vec::new();
-        // PIDs differ between dongles (0x001c and 0x001e seen), so match the
-        // protocol collection instead.
+        // The Maya X is 0x001c on the cable and 0x001e through its dongle;
+        // match the protocol collection so other models work too.
         for c in collections.iter().filter(|c| c.vid == hid::LAMZU && c.feature_len as usize == REPORT_LEN) {
             if done.contains(&c.pid) {
                 continue;

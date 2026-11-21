@@ -50,9 +50,11 @@ platform-independent and tested with `MockChannel`/feature mock, no copied GPL c
   mouse behind the dongle, `00` the dongle. The web driver waits 16–100 ms between
   set and get.
 - Battery: `00 00 02 02 00 83` → `A1 00 02 02 00 83 00 64` with the driver showing
-  100 %, not charging. Data byte 1 is the level in percent; data byte 0 is assumed
-  to be the charging flag (0 seen while not charging; unverified).
-- Not observed yet: replies while charging, at other levels, or with the mouse off.
+  100 %, not charging. Data byte 1 is the level in percent; data byte 0 is the
+  charging flag (confirmed below).
+- Verified with `--probe`: dongle `0x001E` → 100 %, not charging; mouse on the cable
+  `0x001C` → 100 %, charging (data byte 0 = 1), while the dongle stops answering, so
+  no duplicate; mouse switched off → not shown. Not observed yet: levels below 100 %.
 
 ## Phase 2 — provider (after the capture)
 - `src/providers/lamzu.rs` following `steelseries.rs`: `LAMZU` vendor ID constant
