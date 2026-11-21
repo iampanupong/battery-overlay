@@ -7,7 +7,7 @@ A lightweight Windows tray app that shows the battery levels of your wireless de
 ## Planned device support
 - Bluetooth (BLE and Classic) devices
 - Xbox wireless controllers
-- Vendor dongles: Logitech, Razer, SteelSeries, Corsair (ATK and Lamzu best-effort)
+- Vendor dongles: Logitech, Razer, SteelSeries, Corsair, Lamzu (ATK best-effort)
 
 ## Build
 Runs on Windows 10/11 only. You can cross-compile it from macOS or Linux with [cargo-xwin](https://github.com/rust-cross/cargo-xwin):
@@ -25,5 +25,9 @@ cargo test
 
 ## Usage
 - Right-click the tray icon to switch between **Alerts only** and **HUD + alerts** modes, or to quit.
+- Choose **Settings…** in the tray menu to pick the HUD's corner, opacity and size, and the mode. Changes apply right away.
 - Press **Ctrl+Shift+B** to show or hide the HUD.
 - Settings are stored in `%APPDATA%\BatteryOverlay\config.toml`.
+
+## Credits
+- [Outfit](https://github.com/Outfitio/Outfit-Fonts) font by The Outfit Project Authors, used in the settings window under the SIL Open Font License 1.1 (`assets/fonts/OFL.txt`).
