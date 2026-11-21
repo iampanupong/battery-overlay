@@ -39,6 +39,21 @@ platform-independent and tested with `MockChannel`/feature mock, no copied GPL c
   open the Lamzu web driver, capture once on the charger and once off it at a known
   level; also `battery_overlay.exe --probe --all > out.txt`.
 
+## Findings (probe + capture, 2026-11-21)
+- Vendor ID `0x373E`. Through the dongle the probe saw PID `0x001C`, the capture
+  `0x001E` (the device-info reply also names both), so the provider matches the
+  vendor and the protocol collection, not a PID.
+- Protocol collection: interface 2, usage `FFFF:0000`, feature report ID 0,
+  65 bytes (ID + 64), no input/output reports.
+- Request (after the report ID): `00 00 <target> <len> <class> <cmd> <params…>`;
+  reply: `A1 00 <target> <len> <class> <cmd> <len data bytes>`. Target `02` is the
+  mouse behind the dongle, `00` the dongle. The web driver waits 16–100 ms between
+  set and get.
+- Battery: `00 00 02 02 00 83` → `A1 00 02 02 00 83 00 64` with the driver showing
+  100 %, not charging. Data byte 1 is the level in percent; data byte 0 is assumed
+  to be the charging flag (0 seen while not charging; unverified).
+- Not observed yet: replies while charging, at other levels, or with the mouse off.
+
 ## Phase 2 — provider (after the capture)
 - `src/providers/lamzu.rs` following `steelseries.rs`: `LAMZU` vendor ID constant
   in `hid.rs` and `VENDORS`, request bytes + parser at the top, `#[cfg(windows)] mod win`

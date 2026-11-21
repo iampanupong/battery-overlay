@@ -1,5 +1,5 @@
 //! Shared HID plumbing for the vendor providers (Logitech, Razer, SteelSeries,
-//! Corsair).
+//! Corsair, Lamzu).
 //!
 //! Only USB devices from the vendors we know are ever opened (`--probe --all`
 //! also describes other vendors' devices, with zero access); Bluetooth HID
@@ -15,7 +15,8 @@ pub const LOGITECH: u16 = 0x046d;
 pub const RAZER: u16 = 0x1532;
 pub const STEELSERIES: u16 = 0x1038;
 pub const CORSAIR: u16 = 0x1b1c;
-pub const VENDORS: [u16; 4] = [LOGITECH, RAZER, STEELSERIES, CORSAIR];
+pub const LAMZU: u16 = 0x373e;
+pub const VENDORS: [u16; 5] = [LOGITECH, RAZER, STEELSERIES, CORSAIR, LAMZU];
 
 /// One HID top-level collection. Windows exposes each collection of a USB
 /// interface as its own device interface with its own path.

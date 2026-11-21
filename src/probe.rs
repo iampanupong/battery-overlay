@@ -1,6 +1,6 @@
 //! `--probe`: prints what the providers see, for checking real devices: the
 //! Bluetooth device nodes, the vendor HID collections (Logitech, Razer,
-//! SteelSeries, Corsair) and the merged device list.
+//! SteelSeries, Corsair, Lamzu) and the merged device list.
 //! `--probe --all` also dumps every raw property of each Bluetooth device node,
 //! one per line in a stable order, so two runs (e.g. on and off the charger)
 //! can be compared with `fc` or `diff`, and lists vendor-defined HID
