@@ -186,9 +186,16 @@ impl App {
     }
 
     /// Applies what the settings window saved. Only the HUD and mode are
-    /// live; a changed hotkey or poll interval takes effect on restart.
+    /// live; a changed hotkey or poll interval takes effect on restart. An
+    /// unreadable file keeps the current settings rather than resetting them.
     fn reload_config(&mut self) {
-        let new = config::load(&self.config_path);
+        let new = match config::try_load(&self.config_path) {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                eprintln!("could not reload config: {e}");
+                return;
+            }
+        };
         self.hud_visible = config::hud_visible_after_reload(self.config.mode, new.mode, self.hud_visible);
         self.config.mode = new.mode;
         self.config.hud = new.hud;

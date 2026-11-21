@@ -2,6 +2,8 @@
 
 use std::time::{Duration, Instant};
 
+use crate::config::Config;
+
 /// Class of the main app's hidden window, which receives `CONFIG_CHANGED_MSG`.
 pub const MAIN_WINDOW_CLASS: &str = "BatteryOverlay.Main";
 /// Registered window message posted after the settings window saves the config.
@@ -54,6 +56,26 @@ pub fn parse_percent(s: &str) -> Option<f64> {
     Some(p / 100.0)
 }
 
+/// Applies the fields edited in the settings window (`before` → `edited`)
+/// onto the config on disk, so a mode switched from the tray meanwhile, or
+/// any other field, isn't overwritten with the window's stale copy.
+pub fn apply_edits(mut disk: Config, before: &Config, edited: &Config) -> Config {
+    if edited.mode != before.mode {
+        disk.mode = edited.mode;
+    }
+    let (hud, old) = (&mut disk.hud, &before.hud);
+    if edited.hud.corner != old.corner {
+        hud.corner = edited.hud.corner;
+    }
+    if edited.hud.opacity != old.opacity {
+        hud.opacity = edited.hud.opacity;
+    }
+    if edited.hud.scale != old.scale {
+        hud.scale = edited.hud.scale;
+    }
+    disk
+}
+
 #[cfg(windows)]
 pub use win::run;
 
@@ -72,7 +94,7 @@ mod win {
     };
 
     use super::{
-        parse_percent, percent_text, SaveThrottle, CONFIG_CHANGED_MSG, MAIN_WINDOW_CLASS, SAVE_INTERVAL,
+        apply_edits, parse_percent, percent_text, SaveThrottle, CONFIG_CHANGED_MSG, MAIN_WINDOW_CLASS, SAVE_INTERVAL,
         SETTINGS_MUTEX,
     };
     use crate::config::{self, Config, Corner, OverlayMode};
@@ -92,8 +114,11 @@ mod win {
         }
 
         let path = config::config_path();
+        let loaded = config::load(&path);
         let app = Settings {
-            config: config::load(&path),
+            config: loaded.clone(),
+            on_disk: loaded,
+            focused: true,
             path,
             throttle: SaveThrottle::default(),
             changed_msg: unsafe { RegisterWindowMessageW(&HSTRING::from(CONFIG_CHANGED_MSG)) },
@@ -112,7 +137,11 @@ mod win {
     }
 
     struct Settings {
+        /// What the controls show and edit.
         config: Config,
+        /// The config as last loaded or saved; `config` minus this = the user's edits.
+        on_disk: Config,
+        focused: bool,
         path: PathBuf,
         throttle: SaveThrottle,
         changed_msg: u32,
@@ -149,12 +178,17 @@ mod win {
             changed
         }
 
-        /// Saves and tells the running overlay to reload. A failed save stays
-        /// pending and is retried on a later frame.
+        /// Merges the edits onto the file's current contents (the tray may have
+        /// switched the mode meanwhile), saves, and tells the running overlay
+        /// to reload. A failed save stays pending and is retried on a later frame.
         fn save(&mut self, now: Instant) {
-            match config::save(&self.path, &self.config) {
+            let disk = config::try_load(&self.path).unwrap_or_else(|_| self.on_disk.clone());
+            let merged = apply_edits(disk, &self.on_disk, &self.config);
+            match config::save(&self.path, &merged) {
                 Ok(()) => {
                     self.throttle.saved(now);
+                    self.config = merged.clone();
+                    self.on_disk = merged;
                     notify_main_window(self.changed_msg);
                 }
                 Err(e) => eprintln!("could not save config: {e}"),
@@ -164,6 +198,15 @@ mod win {
 
     impl eframe::App for Settings {
         fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+            // Coming back to the window: show changes made from the tray meanwhile.
+            let focused = ui.ctx().input(|i| i.focused);
+            if focused && !self.focused && self.throttle.wait(Instant::now()).is_none() {
+                if let Ok(cfg) = config::try_load(&self.path) {
+                    self.config = cfg.clone();
+                    self.on_disk = cfg;
+                }
+            }
+            self.focused = focused;
             egui::CentralPanel::default().show(ui, |ui| {
                 if self.controls(ui) {
                     self.throttle.mark_dirty();
@@ -203,6 +246,7 @@ mod win {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{Corner, OverlayMode};
 
     const MS: fn(u64) -> Duration = Duration::from_millis;
 
@@ -242,6 +286,35 @@ mod tests {
         assert_eq!(parse_percent("45%"), Some(0.45));
         assert_eq!(parse_percent(" 150 "), Some(1.5));
         assert_eq!(parse_percent("abc"), None);
+    }
+
+    #[test]
+    fn apply_edits_keeps_changes_made_elsewhere() {
+        let before = Config::default();
+        let mut edited = before.clone();
+        edited.hud.opacity = 0.5;
+        // The tray switched the mode while the settings window was open.
+        let mut disk = before.clone();
+        disk.mode = OverlayMode::AlertsOnly;
+        disk.hotkey = "Alt+F9".into();
+        let merged = apply_edits(disk, &before, &edited);
+        assert_eq!(merged.mode, OverlayMode::AlertsOnly);
+        assert_eq!(merged.hotkey, "Alt+F9");
+        assert_eq!(merged.hud.opacity, 0.5);
+    }
+
+    #[test]
+    fn apply_edits_writes_every_edited_field() {
+        let before = Config::default();
+        let mut edited = before.clone();
+        edited.mode = OverlayMode::AlertsOnly;
+        edited.hud.corner = Corner::BottomLeft;
+        edited.hud.scale = 2.0;
+        let merged = apply_edits(before.clone(), &before, &edited);
+        assert_eq!(merged.mode, OverlayMode::AlertsOnly);
+        assert_eq!(merged.hud.corner, Corner::BottomLeft);
+        assert_eq!(merged.hud.scale, 2.0);
+        assert_eq!(merged.hud.opacity, before.hud.opacity);
     }
 
     #[test]
