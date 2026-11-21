@@ -20,6 +20,10 @@ mod tray;
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let has = |flag: &str| args.iter().any(|a| a == flag);
+    if has("--settings") {
+        settings::run();
+        return;
+    }
     if has("--probe") {
         probe::run(has("--all"));
         return;
