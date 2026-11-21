@@ -37,4 +37,4 @@ Vendor HID collections (USB):
     \\?\HID#VID_1532&PID_00B3&MI_02#7&130a1586&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}\KBD
 
 Devices shown in the overlay:
-  Other "Razer HyperPolling Wireless" level=Some(26) charging=false id=razer:00b3
+  Mouse "Razer HyperPolling Wireless" level=Some(25) charging=false id=razer:00b3
