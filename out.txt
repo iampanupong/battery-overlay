@@ -1,0 +1,38 @@
+﻿Bluetooth device nodes:
+  BTHENUM\Dev_EC2C73344D32\7&23a85b4e&0&BluetoothDevice_EC2C73344D32
+    name=Some("SandyLoveWife airpods") container=Some("bdce38f321d95a5faf7224538fd72284") battery=None connected=Some(false) cod=Some("0x240418")
+  BTHENUM\{00001000-0000-1000-8000-00805f9b34fb}_VID&0001004c_PID&2013\7&23a85b4e&0&EC2C73344D32_C00000000
+    name=None container=Some("bdce38f321d95a5faf7224538fd72284") battery=None connected=Some(false) cod=Some("0x240418")
+  BTHENUM\{0000110b-0000-1000-8000-00805f9b34fb}_VID&0001004c_PID&2013\7&23a85b4e&0&EC2C73344D32_C00000000
+    name=Some("SandyLoveWife airpods - Find My") container=Some("bdce38f321d95a5faf7224538fd72284") battery=None connected=Some(false) cod=Some("0x240418")
+  BTHENUM\{0000110c-0000-1000-8000-00805f9b34fb}_VID&0001004c_PID&2013\7&23a85b4e&0&EC2C73344D32_C00000000
+    name=Some("SandyLoveWife airpods - Find My Avrcp Transport") container=Some("bdce38f321d95a5faf7224538fd72284") battery=None connected=Some(false) cod=Some("0x240418")
+  BTHENUM\{0000110e-0000-1000-8000-00805f9b34fb}_VID&0001004c_PID&2013\7&23a85b4e&0&EC2C73344D32_C00000000
+    name=Some("SandyLoveWife airpods - Find My Avrcp Transport") container=Some("bdce38f321d95a5faf7224538fd72284") battery=None connected=Some(false) cod=Some("0x240418")
+  BTHENUM\{0000111e-0000-1000-8000-00805f9b34fb}_VID&0001004c_PID&2013\7&23a85b4e&0&EC2C73344D32_C00000000
+    name=Some("SandyLoveWife airpods - Find My Hands-Free AG") container=Some("bdce38f321d95a5faf7224538fd72284") battery=None connected=Some(false) cod=Some("0x240418")
+  BTHENUM\{74ec2172-0bad-4d01-8f77-997b2be0722a}_VID&0001004c_PID&2013\7&23a85b4e&0&EC2C73344D32_C00000000
+    name=None container=Some("bdce38f321d95a5faf7224538fd72284") battery=None connected=Some(false) cod=Some("0x240418")
+
+Vendor HID collections (USB):
+  1532:00b6 mi=0 usage=0001:0002 in=9 out=0 feature=91 "Razer DeathAdder V3 Pro"
+    \\?\HID#VID_1532&PID_00B6&MI_00#7&267aa5e&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
+  1532:00b6 mi=0 usage=000c:0001 in=3 out=0 feature=0 ""
+    \\?\HID#VID_1532&PID_00B6&MI_00&Col03&Col01#8&30438352&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
+  1532:00b6 mi=0 usage=0001:0080 in=2 out=0 feature=0 ""
+    \\?\HID#VID_1532&PID_00B6&MI_00&Col03&Col02#8&30438352&0&0001#{4d1e55b2-f16f-11cf-88cb-001111000030}
+  1532:00b6 mi=1 usage=0001:0006 in=16 out=0 feature=0 "Razer DeathAdder V3 Pro"
+    \\?\HID#VID_1532&PID_00B6&MI_01&Col01#7&263ee820&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}\KBD
+  1532:00b6 mi=1 usage=000c:0001 in=16 out=0 feature=0 "Razer DeathAdder V3 Pro"
+    \\?\HID#VID_1532&PID_00B6&MI_01&Col02#7&263ee820&0&0001#{4d1e55b2-f16f-11cf-88cb-001111000030}
+  1532:00b6 mi=1 usage=0001:0080 in=16 out=0 feature=0 "Razer DeathAdder V3 Pro"
+    \\?\HID#VID_1532&PID_00B6&MI_01&Col03#7&263ee820&0&0002#{4d1e55b2-f16f-11cf-88cb-001111000030}
+  1532:00b6 mi=1 usage=0001:0000 in=16 out=0 feature=0 "Razer DeathAdder V3 Pro"
+    \\?\HID#VID_1532&PID_00B6&MI_01&Col04#7&263ee820&0&0003#{4d1e55b2-f16f-11cf-88cb-001111000030}
+  1532:00b6 mi=1 usage=0001:0000 in=16 out=0 feature=0 "Razer DeathAdder V3 Pro"
+    \\?\HID#VID_1532&PID_00B6&MI_01&Col05#7&263ee820&0&0004#{4d1e55b2-f16f-11cf-88cb-001111000030}
+  1532:00b6 mi=2 usage=0001:0006 in=9 out=2 feature=0 "Razer DeathAdder V3 Pro"
+    \\?\HID#VID_1532&PID_00B6&MI_02#7&3197c09&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}\KBD
+
+Devices shown in the overlay:
+  Mouse "Razer DeathAdder V3 Pro" level=Some(17) charging=true id=razer:00b6
