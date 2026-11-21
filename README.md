@@ -28,3 +28,6 @@ cargo test
 - Choose **Settings…** in the tray menu to pick the HUD's corner, opacity and size, and the mode. Changes apply right away.
 - Press **Ctrl+Shift+B** to show or hide the HUD.
 - Settings are stored in `%APPDATA%\BatteryOverlay\config.toml`.
+
+## Credits
+- [Outfit](https://github.com/Outfitio/Outfit-Fonts) font by The Outfit Project Authors, used in the settings window under the SIL Open Font License 1.1 (`assets/fonts/OFL.txt`).
