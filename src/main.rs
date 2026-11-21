@@ -9,6 +9,7 @@ mod model;
 mod overlay;
 mod probe;
 mod providers;
+mod settings;
 
 #[cfg(windows)]
 mod app;

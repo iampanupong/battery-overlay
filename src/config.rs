@@ -90,6 +90,16 @@ impl Config {
     }
 }
 
+/// HUD visibility after the config is reloaded: a hotkey-hidden HUD stays
+/// hidden unless the mode itself changed, which resets it to match the mode.
+pub fn hud_visible_after_reload(old: OverlayMode, new: OverlayMode, visible: bool) -> bool {
+    if old == new {
+        visible
+    } else {
+        new == OverlayMode::HudAndAlerts
+    }
+}
+
 pub fn config_path() -> PathBuf {
     std::env::var_os("APPDATA")
         .map(PathBuf::from)
@@ -176,6 +186,15 @@ mod tests {
         assert_eq!(cfg.poll_interval_secs, 5);
         assert_eq!(cfg.thresholds.warning, 100);
         assert_eq!(cfg.thresholds.critical, 100);
+    }
+
+    #[test]
+    fn reload_keeps_hotkey_visibility_unless_mode_changes() {
+        use OverlayMode::*;
+        assert!(!hud_visible_after_reload(HudAndAlerts, HudAndAlerts, false));
+        assert!(hud_visible_after_reload(AlertsOnly, HudAndAlerts, false));
+        assert!(!hud_visible_after_reload(HudAndAlerts, AlertsOnly, true));
+        assert!(hud_visible_after_reload(AlertsOnly, AlertsOnly, true));
     }
 
     #[test]
