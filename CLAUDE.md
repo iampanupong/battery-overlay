@@ -15,7 +15,7 @@ Windows tray/overlay app (Rust) that shows battery levels of wireless devices (B
 - Build: `cargo xwin build --release --target x86_64-pc-windows-msvc`
 - Tests: `cargo test` — keep alert logic, config, and HID protocol parsers platform-independent so they test on macOS.
 - Config lives at `%APPDATA%\BatteryOverlay\config.toml`.
-- Can't run the app here: verify on Windows with `battery_overlay.exe --probe [--all] > out.txt` (what providers see / every raw device property) or `--demo` (placeholder devices, overlay only).
+- Can't run the app here: verify on Windows with `battery_overlay.exe --probe [--all] > out.txt` (what providers see / every raw device property plus unsupported vendors' vendor-defined HID collections) or `--demo` (placeholder devices, overlay only).
 
 ## Providers (`src/providers/`)
 - One module per source; `poll_all()` merges them. Pure parsing/merging at the top of each module, Win32 queries in a `#[cfg(windows)] mod win`.
