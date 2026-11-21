@@ -1,7 +1,8 @@
 //! Shared HID plumbing for the vendor providers (Logitech, Razer, SteelSeries,
 //! Corsair).
 //!
-//! Only USB devices from the vendors we know are ever opened; Bluetooth HID
+//! Only USB devices from the vendors we know are ever opened (`--probe --all`
+//! also describes other vendors' devices, with zero access); Bluetooth HID
 //! devices are skipped because the Bluetooth provider already reports them.
 //! Handles are always opened shared, so vendor software (G Hub, Synapse,
 //! GG, iCUE) keeps working alongside us. Every input report is delivered to
@@ -70,6 +71,12 @@ pub fn clean_product_name(name: &str) -> String {
     n.to_string()
 }
 
+/// A vendor-defined collection of a vendor we don't support yet: what
+/// `--probe --all` lists to find the dongles of new vendors.
+pub fn is_unknown_vendor_defined(c: &HidInfo) -> bool {
+    !VENDORS.contains(&c.vid) && c.usage_page >= 0xff00
+}
+
 /// Output/input report exchange with one device (possibly over several
 /// collections of the same interface).
 pub trait Channel {
@@ -110,7 +117,7 @@ pub trait FeatureChannel {
 }
 
 #[cfg(windows)]
-pub use win::{enumerate, read_any, HidDevice};
+pub use win::{enumerate, enumerate_where, read_any, HidDevice};
 
 #[cfg(windows)]
 mod win {
@@ -141,12 +148,17 @@ mod win {
     /// Every present USB HID collection of the given vendors. Devices of other
     /// vendors are filtered by path and never opened.
     pub fn enumerate(vendors: &[u16]) -> Vec<HidInfo> {
+        enumerate_where(|vid| vendors.contains(&vid))
+    }
+
+    /// USB HID collections whose vendor ID passes `keep_vid`; others are never opened.
+    pub fn enumerate_where(keep_vid: impl Fn(u16) -> bool) -> Vec<HidInfo> {
         let guid = unsafe { HidD_GetHidGuid() };
         interface_paths(&guid)
             .into_iter()
             .filter_map(|path| {
                 let (vid, pid, interface) = parse_usb_path(&path)?;
-                if !vendors.contains(&vid) {
+                if !keep_vid(vid) {
                     return None;
                 }
                 // Zero access is enough for attributes and caps, and works even
@@ -424,6 +436,17 @@ impl<F: FnMut(&[u8]) -> Vec<Vec<u8>>> Channel for MockChannel<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn picks_unknown_vendor_defined_collections() {
+        let c = |vid, usage_page| HidInfo { vid, usage_page, ..Default::default() };
+        assert!(is_unknown_vendor_defined(&c(0x3554, 0xff00)));
+        assert!(is_unknown_vendor_defined(&c(0x3554, 0xffff)));
+        assert!(!is_unknown_vendor_defined(&c(0x3554, 0xfeff)));
+        assert!(!is_unknown_vendor_defined(&c(0x3554, 0x0001)));
+        assert!(!is_unknown_vendor_defined(&c(0x3554, 0x000c)));
+        assert!(!is_unknown_vendor_defined(&c(LOGITECH, 0xff00)));
+    }
 
     #[test]
     fn parses_usb_paths() {

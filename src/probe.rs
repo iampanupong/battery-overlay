@@ -3,7 +3,8 @@
 //! SteelSeries, Corsair) and the merged device list.
 //! `--probe --all` also dumps every raw property of each Bluetooth device node,
 //! one per line in a stable order, so two runs (e.g. on and off the charger)
-//! can be compared with `fc` or `diff`.
+//! can be compared with `fc` or `diff`, and lists vendor-defined HID
+//! collections of vendors we don't support yet, to identify their dongles.
 
 /// Short labels for properties we know, to make the dump easier to read.
 fn known_name(key: &str) -> Option<&'static str> {
@@ -149,6 +150,14 @@ pub fn run(all: bool) {
     println!("\nVendor HID collections (USB):");
     for c in &collections {
         println!("{}", collection_line(c));
+    }
+    if all {
+        let mut others: Vec<_> = hid::enumerate_where(|_| true).into_iter().filter(hid::is_unknown_vendor_defined).collect();
+        others.sort_by(|a, b| a.path.cmp(&b.path));
+        println!("\nOther vendor-defined HID collections (USB):");
+        for c in &others {
+            println!("{}", collection_line(c));
+        }
     }
     println!("\nDevices shown in the overlay:");
     for d in providers::poll_all() {
