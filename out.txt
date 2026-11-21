@@ -15,20 +15,6 @@
     name=None container=Some("bdce38f321d95a5faf7224538fd72284") battery=None connected=Some(false) cod=Some("0x240418")
 
 Vendor HID collections (USB):
-  373e:001c mi=0 usage=0001:0002 in=9 out=0 feature=0 "LAMZU MAYA X"
-    \\?\HID#VID_373E&PID_001C&MI_00#7&339af366&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
-  373e:001c mi=1 usage=000c:0001 in=3 out=0 feature=0 "LAMZU MAYA X"
-    \\?\HID#VID_373E&PID_001C&MI_01&Col01#7&fc3b5a4&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
-  373e:001c mi=1 usage=0001:0080 in=2 out=0 feature=0 "LAMZU MAYA X"
-    \\?\HID#VID_373E&PID_001C&MI_01&Col02#7&fc3b5a4&0&0001#{4d1e55b2-f16f-11cf-88cb-001111000030}
-  373e:001c mi=1 usage=0001:0006 in=9 out=2 feature=0 "LAMZU MAYA X"
-    \\?\HID#VID_373E&PID_001C&MI_01&Col03#7&fc3b5a4&0&0002#{4d1e55b2-f16f-11cf-88cb-001111000030}\KBD
-  373e:001c mi=1 usage=ffa0:0001 in=9 out=0 feature=0 "LAMZU MAYA X"
-    \\?\HID#VID_373E&PID_001C&MI_01&Col04#7&fc3b5a4&0&0003#{4d1e55b2-f16f-11cf-88cb-001111000030}
-  373e:001c mi=1 usage=ffff:0001 in=9 out=0 feature=0 "LAMZU MAYA X"
-    \\?\HID#VID_373E&PID_001C&MI_01&Col05#7&fc3b5a4&0&0004#{4d1e55b2-f16f-11cf-88cb-001111000030}
-  373e:001c mi=2 usage=ffff:0000 in=0 out=0 feature=65 "LAMZU MAYA X"
-    \\?\HID#VID_373E&PID_001C&MI_02#7&1413881e&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
   373e:001e mi=0 usage=0001:0002 in=9 out=0 feature=0 "LAMZU Maya X 8K Dongle"
     \\?\HID#VID_373E&PID_001E&MI_00#7&21bec644&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
   373e:001e mi=1 usage=000c:0001 in=3 out=0 feature=0 "LAMZU Maya X 8K Dongle"
@@ -45,4 +31,3 @@ Vendor HID collections (USB):
     \\?\HID#VID_373E&PID_001E&MI_02#7&4a17238&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
 
 Devices shown in the overlay:
-  Mouse "LAMZU MAYA X" level=Some(100) charging=true id=lamzu:001c
