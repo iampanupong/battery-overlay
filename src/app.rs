@@ -14,10 +14,10 @@ use windows::Win32::UI::HiDpi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, KillTimer,
-    PostQuitMessage, RegisterClassW, RegisterWindowMessageW, SetTimer, TranslateMessage,
-    DBT_DEVNODES_CHANGED, MSG, WINDOW_EX_STYLE, WM_CONTEXTMENU, WM_DESTROY, WM_DEVICECHANGE,
-    WM_DISPLAYCHANGE, WM_HOTKEY, WM_LBUTTONDBLCLK, WM_RBUTTONUP, WM_TIMER, WNDCLASSW,
-    WS_OVERLAPPED,
+    PostMessageW, PostQuitMessage, RegisterClassW, RegisterWindowMessageW, SetTimer,
+    TranslateMessage, DBT_DEVNODES_CHANGED, MSG, WINDOW_EX_STYLE, WM_APP, WM_CONTEXTMENU,
+    WM_DESTROY, WM_DEVICECHANGE, WM_DISPLAYCHANGE, WM_HOTKEY, WM_LBUTTONDBLCLK, WM_RBUTTONUP,
+    WM_TIMER, WNDCLASSW, WS_OVERLAPPED,
 };
 
 use crate::config::{self, Config, OverlayMode};
@@ -34,8 +34,11 @@ const DEVICE_CHANGE_DELAY_MS: u32 = 250;
 /// a moment after the device itself appears.
 const DEVICE_SETTLE_TIMER: usize = 3;
 const DEVICE_SETTLE_DELAY_MS: u32 = 3000;
+/// Posted by the poll thread; `lparam` owns a `Box<Vec<Device>>`.
+const WM_POLLED: u32 = WM_APP + 2;
 
 struct App {
+    hwnd: HWND,
     config: Config,
     config_path: PathBuf,
     devices: Vec<Device>,
@@ -44,6 +47,10 @@ struct App {
     hud: Overlay,
     hud_visible: bool,
     tray: tray::Tray,
+    /// A poll thread is running; its result arrives as `WM_POLLED`.
+    polling: bool,
+    /// Another poll was requested while one was running.
+    repoll: bool,
 }
 
 thread_local! {
@@ -84,15 +91,19 @@ pub fn run(demo: bool) -> Result<()> {
     let hud = Overlay::new(instance)?;
     let _topmost = TopmostGuard::install(hud.hwnd());
     let mut app = App {
+        hwnd,
         hud_visible: config.mode == OverlayMode::HudAndAlerts,
         config,
         config_path,
-        devices: if demo { model::fake_devices() } else { providers::poll_all() },
+        devices: if demo { model::fake_devices() } else { Vec::new() },
         demo,
         hud,
         tray: tray::Tray::add(hwnd)?,
+        polling: false,
+        repoll: false,
     };
     app.refresh_hud();
+    app.poll();
     if !demo {
         unsafe { SetTimer(hwnd, POLL_TIMER, app.config.poll_interval_secs as u32 * 1000, None) };
     }
@@ -121,15 +132,39 @@ impl App {
         }
     }
 
-    /// Re-reads all providers and redraws only if something changed.
+    /// Re-reads all providers on a short-lived thread, since vendor HID
+    /// queries can wait on sleeping devices. At most one runs at a time.
     fn poll(&mut self) {
         if self.demo {
             return;
         }
-        let devices = providers::poll_all();
+        if self.polling {
+            self.repoll = true;
+            return;
+        }
+        self.polling = true;
+        // HWND isn't Send; the raw value is valid to post to from any thread.
+        let hwnd = self.hwnd.0 as isize;
+        std::thread::spawn(move || {
+            let devices = Box::into_raw(Box::new(providers::poll_all()));
+            let posted =
+                unsafe { PostMessageW(HWND(hwnd as _), WM_POLLED, WPARAM(0), LPARAM(devices as isize)) };
+            if posted.is_err() {
+                // The window is gone; nobody will take ownership.
+                drop(unsafe { Box::from_raw(devices) });
+            }
+        });
+    }
+
+    /// Takes a poll result and redraws only if something changed.
+    fn on_polled(&mut self, devices: Vec<Device>) {
+        self.polling = false;
         if devices != self.devices {
             self.devices = devices;
             self.refresh_hud();
+        }
+        if std::mem::take(&mut self.repoll) {
+            self.poll();
         }
     }
 
@@ -231,6 +266,11 @@ unsafe extern "system" fn main_wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
         }
         WM_HOTKEY if wparam.0 == HOTKEY_ID as usize => {
             with_app(App::toggle_hud);
+            LRESULT(0)
+        }
+        WM_POLLED => {
+            let devices = *Box::from_raw(lparam.0 as *mut Vec<Device>);
+            with_app(|a| a.on_polled(devices));
             LRESULT(0)
         }
         WM_TIMER if wparam.0 == POLL_TIMER => {

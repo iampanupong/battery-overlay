@@ -9,6 +9,34 @@ pub enum DeviceKind {
     Other,
 }
 
+impl DeviceKind {
+    /// Guess from a product name, for sources that don't report a type.
+    pub fn from_name(name: &str) -> Self {
+        let n = name.to_lowercase();
+        let has = |words: &[&str]| words.iter().any(|w| n.contains(w));
+        // Checked first: "PRO X Wireless Gaming Headset" must not match "g pro".
+        if has(&["headset", "headphone"]) {
+            DeviceKind::Headset
+        } else if has(&["mouse", "mx master", "mx anywhere", "trackball", "trackpad"])
+            || has(&["viper", "deathadder", "basilisk", "naga", "orochi", "mamba", "lancehead", "atheris", "cobra"])
+            || has(&["superlight", "g pro", "g502", "g903", "g305", "harpoon", "dark core", "katar", "m65", "sabre", "ironclaw"])
+        {
+            DeviceKind::Mouse
+        } else if has(&["keyboard", "keys", "keychron", "mx mechanical", "blackwidow", "huntsman", "k57", "k63", "k100"]) {
+            DeviceKind::Keyboard
+        } else if has(&["controller", "gamepad", "dualsense", "dualshock", "joy-con", "8bitdo"]) {
+            DeviceKind::Controller
+        } else if has(&[
+            "buds", "airpods", "earbuds", "wh-", "wf-", "arctis", "nova", "jabra", "kraken",
+            "barracuda", "blackshark", "virtuoso", "void", "hs80", "hs70",
+        ]) {
+            DeviceKind::Headset
+        } else {
+            DeviceKind::Other
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Device {
     pub id: String,
@@ -68,5 +96,16 @@ mod tests {
         assert_eq!(severity(Some(11), &t), Severity::Warning);
         assert_eq!(severity(Some(10), &t), Severity::Critical);
         assert_eq!(severity(Some(0), &t), Severity::Critical);
+    }
+
+    #[test]
+    fn kind_from_name() {
+        assert_eq!(DeviceKind::from_name("MX Master 3"), DeviceKind::Mouse);
+        assert_eq!(DeviceKind::from_name("Razer Viper Ultimate"), DeviceKind::Mouse);
+        assert_eq!(DeviceKind::from_name("Keychron K2"), DeviceKind::Keyboard);
+        assert_eq!(DeviceKind::from_name("Arctis Nova 7"), DeviceKind::Headset);
+        assert_eq!(DeviceKind::from_name("CORSAIR VIRTUOSO RGB WIRELESS XT"), DeviceKind::Headset);
+        assert_eq!(DeviceKind::from_name("G PRO X Wireless Gaming Headset"), DeviceKind::Headset);
+        assert_eq!(DeviceKind::from_name("Speaker"), DeviceKind::Other);
     }
 }

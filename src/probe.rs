@@ -1,4 +1,6 @@
-//! `--probe`: prints what the providers see, for checking real devices.
+//! `--probe`: prints what the providers see, for checking real devices: the
+//! Bluetooth device nodes, the vendor HID collections (Logitech, Razer,
+//! SteelSeries, Corsair) and the merged device list.
 //! `--probe --all` also dumps every raw property of each Bluetooth device node,
 //! one per line in a stable order, so two runs (e.g. on and off the charger)
 //! can be compared with `fc` or `diff`.
@@ -115,7 +117,7 @@ fn property_line(key: &str, ty: u32, data: &[u8]) -> String {
 
 #[cfg(windows)]
 pub fn run(all: bool) {
-    use crate::providers::{self, bluetooth};
+    use crate::providers::{self, bluetooth, hid};
     use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
     // Release builds have no console of their own; borrow the launching one.
     let _ = unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
@@ -142,10 +144,34 @@ pub fn run(all: bool) {
             println!();
         }
     }
+    let mut collections = hid::enumerate(&hid::VENDORS);
+    collections.sort_by(|a, b| a.path.cmp(&b.path));
+    println!("\nVendor HID collections (USB):");
+    for c in &collections {
+        println!("{}", collection_line(c));
+    }
     println!("\nDevices shown in the overlay:");
     for d in providers::poll_all() {
-        println!("  {:?} {:?} level={:?} id={}", d.kind, d.name, d.level, d.id);
+        println!("  {:?} {:?} level={:?} charging={} id={}", d.kind, d.name, d.level, d.charging, d.id);
     }
+}
+
+/// One vendor HID collection: IDs, usage and report sizes are what decides
+/// which provider talks to it and how.
+fn collection_line(c: &crate::providers::hid::HidInfo) -> String {
+    format!(
+        "  {:04x}:{:04x} mi={} usage={:04x}:{:04x} in={} out={} feature={} {:?}\n    {}",
+        c.vid,
+        c.pid,
+        c.interface.map_or("-".into(), |i| i.to_string()),
+        c.usage_page,
+        c.usage,
+        c.input_len,
+        c.output_len,
+        c.feature_len,
+        c.product.as_deref().unwrap_or(""),
+        c.path,
+    )
 }
 
 #[cfg(test)]
@@ -184,6 +210,26 @@ mod tests {
         assert_eq!(format_value(0x1003, &[0xde, 0xad]), "de ad");
         assert_eq!(format_value(0x07, &[1, 2]), "01 02");
         assert!(format_value(0x1003, &[0; 100]).ends_with("… (100 bytes)"));
+    }
+
+    #[test]
+    fn describes_hid_collections() {
+        let c = crate::providers::hid::HidInfo {
+            path: "p".into(),
+            vid: 0x046d,
+            pid: 0xc539,
+            interface: Some(2),
+            usage_page: 0xff00,
+            usage: 2,
+            input_len: 20,
+            output_len: 20,
+            feature_len: 0,
+            product: Some("USB Receiver".into()),
+        };
+        assert_eq!(
+            collection_line(&c),
+            "  046d:c539 mi=2 usage=ff00:0002 in=20 out=20 feature=0 \"USB Receiver\"\n    p"
+        );
     }
 
     #[test]

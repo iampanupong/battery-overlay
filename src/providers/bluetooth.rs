@@ -46,7 +46,7 @@ pub fn merge(nodes: &[Node]) -> Vec<Device> {
             let kind = group
                 .iter()
                 .find_map(|n| n.class_of_device.and_then(kind_from_class_of_device))
-                .unwrap_or_else(|| kind_from_name(&name));
+                .unwrap_or_else(|| DeviceKind::from_name(&name));
             Some(Device { id: format!("bt:{key}"), name, kind, level: Some(level), charging: false })
         })
         .collect();
@@ -76,23 +76,6 @@ pub fn kind_from_class_of_device(cod: u32) -> Option<DeviceKind> {
             _ => DeviceKind::Other,
         }),
         _ => None,
-    }
-}
-
-/// Fallback for BLE devices, which have no Class of Device.
-pub fn kind_from_name(name: &str) -> DeviceKind {
-    let n = name.to_lowercase();
-    let has = |words: &[&str]| words.iter().any(|w| n.contains(w));
-    if has(&["mouse", "mx master", "mx anywhere", "trackball", "trackpad"]) {
-        DeviceKind::Mouse
-    } else if has(&["keyboard", "keys", "keychron", "mx mechanical"]) {
-        DeviceKind::Keyboard
-    } else if has(&["controller", "gamepad", "dualsense", "dualshock", "joy-con", "8bitdo"]) {
-        DeviceKind::Controller
-    } else if has(&["headset", "headphone", "buds", "airpods", "earbuds", "wh-", "wf-", "arctis", "nova", "jabra"]) {
-        DeviceKind::Headset
-    } else {
-        DeviceKind::Other
     }
 }
 
