@@ -9,6 +9,7 @@
 //! protocols and aren't covered.
 
 use super::hid::FeatureChannel;
+use crate::model::DeviceKind;
 
 /// Report ID byte plus the 90-byte report.
 pub const REPORT_LEN: usize = 91;
@@ -84,6 +85,17 @@ pub fn query(dev: &mut dyn FeatureChannel) -> Option<(u8, bool)> {
     Some((level, charging))
 }
 
+/// The name decides when it's telling; a dongle's name ("HyperPolling
+/// Wireless") isn't, but the protocol collection's HID usage still says
+/// what's behind it.
+pub fn kind(name: &str, usage_page: u16, usage: u16) -> DeviceKind {
+    match (DeviceKind::from_name(name), usage_page, usage) {
+        (DeviceKind::Other, 0x0001, 0x0002) => DeviceKind::Mouse,
+        (DeviceKind::Other, 0x0001, 0x0006) => DeviceKind::Keyboard,
+        (k, ..) => k,
+    }
+}
+
 #[cfg(windows)]
 pub use win::poll;
 
@@ -91,8 +103,8 @@ pub use win::poll;
 mod win {
     use std::collections::BTreeSet;
 
-    use super::{query, REPORT_LEN};
-    use crate::model::{Device, DeviceKind};
+    use super::{kind, query, REPORT_LEN};
+    use crate::model::Device;
     use crate::providers::hid::{self, clean_product_name, HidDevice, HidInfo};
 
     /// The first collection of each product that answers wins, so a device
@@ -110,7 +122,7 @@ mod win {
                 let name = c.product.as_deref().map(clean_product_name).unwrap_or_else(|| "Razer device".into());
                 devices.push(Device {
                     id: format!("razer:{:04x}", c.pid),
-                    kind: DeviceKind::from_name(&name),
+                    kind: kind(&name, c.usage_page, c.usage),
                     name,
                     level: Some(level),
                     charging,
@@ -184,6 +196,14 @@ mod tests {
         r[1] = STATUS_OK;
         r[8] = 0x84;
         assert_eq!(parse_reply(&req, &r), Err(false));
+    }
+
+    #[test]
+    fn dongle_kind_comes_from_hid_usage() {
+        assert_eq!(kind("Razer HyperPolling Wireless", 0x0001, 0x0002), DeviceKind::Mouse);
+        assert_eq!(kind("Razer HyperSpeed Wireless", 0x0001, 0x0006), DeviceKind::Keyboard);
+        assert_eq!(kind("Razer DeathAdder V3 Pro", 0x0001, 0x0006), DeviceKind::Mouse);
+        assert_eq!(kind("Razer HyperSpeed Wireless", 0x000c, 0x0001), DeviceKind::Other);
     }
 
     #[test]
