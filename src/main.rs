@@ -7,6 +7,8 @@ mod config;
 mod hotkey;
 mod model;
 mod overlay;
+mod probe;
+mod providers;
 
 #[cfg(windows)]
 mod app;
@@ -15,14 +17,14 @@ mod tray;
 
 #[cfg(windows)]
 fn main() {
-    if let Err(e) = app::run() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let has = |flag: &str| args.iter().any(|a| a == flag);
+    if has("--probe") {
+        probe::run(has("--all"));
+        return;
+    }
+    if let Err(e) = app::run(has("--demo")) {
         eprintln!("battery_overlay: {e}");
         std::process::exit(1);
     }
-}
-
-#[cfg(not(windows))]
-fn main() {
-    eprintln!("battery_overlay runs on Windows only; use `cargo test` on this platform.");
-    std::process::exit(1);
 }

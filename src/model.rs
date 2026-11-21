@@ -36,7 +36,7 @@ pub fn severity(level: Option<u8>, t: &Thresholds) -> Severity {
     }
 }
 
-/// Placeholder devices used until the real providers land (phase 2).
+/// Placeholder devices for `--demo`, to check the overlay without real hardware.
 pub fn fake_devices() -> Vec<Device> {
     let dev = |id: &str, name: &str, kind, level, charging| Device {
         id: id.into(),
