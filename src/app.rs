@@ -3,7 +3,7 @@
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 
-use windows::core::{w, Result};
+use windows::core::{w, Result, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{
     GetLastError, ERROR_ALREADY_EXISTS, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM,
 };
@@ -23,7 +23,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use crate::config::{self, Config, OverlayMode};
 use crate::model::{self, Device};
 use crate::overlay::{Overlay, TopmostGuard};
-use crate::{hotkey, providers, tray};
+use crate::{hotkey, providers, settings, tray};
 
 const HOTKEY_ID: i32 = 1;
 const POLL_TIMER: usize = 1;
@@ -56,6 +56,8 @@ struct App {
 thread_local! {
     static APP: RefCell<Option<App>> = const { RefCell::new(None) };
     static TASKBAR_CREATED: Cell<u32> = const { Cell::new(0) };
+    /// Posted by the settings process after it saves the config.
+    static CONFIG_CHANGED: Cell<u32> = const { Cell::new(0) };
 }
 
 /// Runs `f` on the app state. Returns `None` if the state is missing or
@@ -78,6 +80,7 @@ pub fn run(demo: bool) -> Result<()> {
     let instance: HINSTANCE = unsafe { GetModuleHandleW(None)? }.into();
     let hwnd = create_main_window(instance)?;
     TASKBAR_CREATED.set(unsafe { RegisterWindowMessageW(w!("TaskbarCreated")) });
+    CONFIG_CHANGED.set(unsafe { RegisterWindowMessageW(&HSTRING::from(settings::CONFIG_CHANGED_MSG)) });
 
     match hotkey::parse(&config.hotkey) {
         Some(hk) => {
@@ -181,6 +184,25 @@ impl App {
         }
         self.refresh_hud();
     }
+
+    /// Applies what the settings window saved. Only the HUD and mode are
+    /// live; a changed hotkey or poll interval takes effect on restart.
+    fn reload_config(&mut self) {
+        let new = config::load(&self.config_path);
+        self.hud_visible = config::hud_visible_after_reload(self.config.mode, new.mode, self.hud_visible);
+        self.config.mode = new.mode;
+        self.config.hud = new.hud;
+        self.refresh_hud();
+    }
+}
+
+/// Starts the settings window as its own process, so egui never loads here.
+/// A second one just brings the open window to the front.
+fn open_settings() {
+    let spawned = std::env::current_exe().and_then(|exe| std::process::Command::new(exe).arg("--settings").spawn());
+    if let Err(e) = spawned {
+        eprintln!("could not open settings: {e}");
+    }
 }
 
 fn acquire_single_instance() -> Result<Option<HANDLE>> {
@@ -195,11 +217,12 @@ fn acquire_single_instance() -> Result<Option<HANDLE>> {
 
 fn create_main_window(instance: HINSTANCE) -> Result<HWND> {
     unsafe {
-        let class = w!("BatteryOverlay.Main");
+        // The settings process finds this window by its class name.
+        let class = HSTRING::from(settings::MAIN_WINDOW_CLASS);
         let wc = WNDCLASSW {
             lpfnWndProc: Some(main_wndproc),
             hInstance: instance,
-            lpszClassName: class,
+            lpszClassName: PCWSTR(class.as_ptr()),
             ..Default::default()
         };
         RegisterClassW(&wc);
@@ -207,7 +230,7 @@ fn create_main_window(instance: HINSTANCE) -> Result<HWND> {
         // so it receives broadcasts like TaskbarCreated and WM_DISPLAYCHANGE.
         CreateWindowExW(
             WINDOW_EX_STYLE(0),
-            class,
+            &class,
             w!("Battery Overlay"),
             WS_OVERLAPPED,
             0,
@@ -245,6 +268,7 @@ fn on_tray_menu(hwnd: HWND) {
         tray::CMD_MODE_HUD_AND_ALERTS => {
             with_app(|a| a.set_mode(OverlayMode::HudAndAlerts));
         }
+        tray::CMD_SETTINGS => open_settings(),
         tray::CMD_QUIT => unsafe {
             let _ = DestroyWindow(hwnd);
         },
@@ -300,6 +324,10 @@ unsafe extern "system" fn main_wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
         }
         WM_DESTROY => {
             PostQuitMessage(0);
+            LRESULT(0)
+        }
+        m if m != 0 && m == CONFIG_CHANGED.get() => {
+            with_app(App::reload_config);
             LRESULT(0)
         }
         m if m != 0 && m == TASKBAR_CREATED.get() => {
