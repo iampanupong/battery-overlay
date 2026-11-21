@@ -9,6 +9,7 @@ Windows tray/overlay app (Rust) that shows battery levels of wireless devices (B
 - Open vendor HID devices non-exclusively (coexist with G Hub/Synapse/iCUE).
 - Protocol references (Solaar, OpenRazer, HeadsetControl, ckb-next, OpenLinkHub) are mostly GPL: implement from protocol knowledge, don't copy code.
 - Two user-selectable overlay modes: Alerts-only, or HUD + alerts (hotkey toggles HUD).
+- Settings window (`src/settings.rs`) = `--settings` egui/eframe process, opened from the tray. While a slider moves it posts `BatteryOverlay.Preview` with the values packed in `wparam` (`settings::encode_preview`; no file I/O, the main window keeps only the newest queued one); on release/click it saves the config and posts `BatteryOverlay.ConfigChanged` to the main window (class `BatteryOverlay.Main`), which reloads only mode + HUD settings. `build.rs` delay-loads the DLLs only eframe uses (opengl32, imm32, uxtheme, dwmapi) so they never load in the overlay process — add any new settings-only DLL there.
 
 ## Build & test
 - Developed on macOS, runs on Windows only.

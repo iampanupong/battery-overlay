@@ -90,6 +90,16 @@ impl Config {
     }
 }
 
+/// HUD visibility after the config is reloaded: a hotkey-hidden HUD stays
+/// hidden unless the mode itself changed, which resets it to match the mode.
+pub fn hud_visible_after_reload(old: OverlayMode, new: OverlayMode, visible: bool) -> bool {
+    if old == new {
+        visible
+    } else {
+        new == OverlayMode::HudAndAlerts
+    }
+}
+
 pub fn config_path() -> PathBuf {
     std::env::var_os("APPDATA")
         .map(PathBuf::from)
@@ -101,14 +111,12 @@ pub fn config_path() -> PathBuf {
 /// Loads the config, writing defaults on first run. A malformed file is left
 /// untouched (so the user's edits aren't lost) and defaults are used instead.
 pub fn load(path: &Path) -> Config {
-    match fs::read_to_string(path) {
-        Ok(text) => match toml::from_str::<Config>(&text) {
-            Ok(cfg) => cfg.sanitized(),
-            Err(e) => {
-                eprintln!("config {} is invalid, using defaults: {e}", path.display());
-                Config::default()
-            }
-        },
+    match try_load(path) {
+        Ok(cfg) => cfg,
+        Err(e) if e.kind() == io::ErrorKind::InvalidData => {
+            eprintln!("config {} is invalid, using defaults: {e}", path.display());
+            Config::default()
+        }
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
             let cfg = Config::default();
             if let Err(e) = save(path, &cfg) {
@@ -121,6 +129,16 @@ pub fn load(path: &Path) -> Config {
             Config::default()
         }
     }
+}
+
+/// Reads the config without falling back to defaults, for reloads where
+/// keeping the current settings beats resetting them. A malformed file is
+/// reported as `InvalidData`.
+pub fn try_load(path: &Path) -> io::Result<Config> {
+    let text = fs::read_to_string(path)?;
+    toml::from_str::<Config>(&text)
+        .map(Config::sanitized)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 
 pub fn save(path: &Path, cfg: &Config) -> io::Result<()> {
@@ -179,6 +197,15 @@ mod tests {
     }
 
     #[test]
+    fn reload_keeps_hotkey_visibility_unless_mode_changes() {
+        use OverlayMode::*;
+        assert!(!hud_visible_after_reload(HudAndAlerts, HudAndAlerts, false));
+        assert!(hud_visible_after_reload(AlertsOnly, HudAndAlerts, false));
+        assert!(!hud_visible_after_reload(HudAndAlerts, AlertsOnly, true));
+        assert!(hud_visible_after_reload(AlertsOnly, AlertsOnly, true));
+    }
+
+    #[test]
     fn load_creates_default_file_when_missing() {
         let path = temp_path("missing");
         let _ = fs::remove_dir_all(path.parent().unwrap());
@@ -194,6 +221,20 @@ mod tests {
         fs::write(&path, "mode = 42").unwrap();
         assert_eq!(load(&path), Config::default());
         assert_eq!(fs::read_to_string(&path).unwrap(), "mode = 42");
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn try_load_reports_missing_and_malformed_files() {
+        let path = temp_path("try_load");
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+        assert!(try_load(&path).is_err());
+        assert!(!path.exists());
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, "mode = 42").unwrap();
+        assert!(try_load(&path).is_err());
+        fs::write(&path, "[hud]\nopacity = 7.0").unwrap();
+        assert_eq!(try_load(&path).unwrap().hud.opacity, 1.0);
         fs::remove_dir_all(path.parent().unwrap()).unwrap();
     }
 

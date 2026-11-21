@@ -21,6 +21,7 @@ pub const CMD_TOGGLE_HUD: u32 = 1;
 pub const CMD_MODE_ALERTS_ONLY: u32 = 2;
 pub const CMD_MODE_HUD_AND_ALERTS: u32 = 3;
 pub const CMD_QUIT: u32 = 4;
+pub const CMD_SETTINGS: u32 = 5;
 
 const ICON_ID: u32 = 1;
 
@@ -83,6 +84,8 @@ pub fn show_menu(hwnd: HWND, hud_visible: bool, mode: OverlayMode, hotkey: &str)
                 CMD_MODE_HUD_AND_ALERTS,
                 w!("Mode: HUD + alerts"),
             )?;
+            item(MF_SEPARATOR, 0, PCWSTR::null())?;
+            item(MF_STRING, CMD_SETTINGS, w!("Settings…"))?;
             item(MF_SEPARATOR, 0, PCWSTR::null())?;
             item(MF_STRING, CMD_QUIT, w!("Quit"))
         })();

@@ -79,18 +79,9 @@ impl Overlay {
         let size = hud::hud_size(devices.len(), scale);
         let margin = (config.hud.margin as f32 * scale).round() as i32;
         let (x, y) = hud::position(config.hud.corner, monitor, size, margin);
-        unsafe {
-            SetWindowPos(
-                self.hwnd,
-                HWND_TOPMOST,
-                x,
-                y,
-                size.0 as i32,
-                size.1 as i32,
-                SWP_NOACTIVATE | SWP_SHOWWINDOW,
-            )?;
-        }
 
+        // Draw first, then move/resize: the other order shows the old frame
+        // stretched to the new size for a moment, which flickers while resizing.
         if self.renderer.is_none() {
             self.renderer = Some(Renderer::new(self.hwnd, size)?);
         }
@@ -100,7 +91,17 @@ impl Overlay {
             let renderer = self.renderer.insert(Renderer::new(self.hwnd, size)?);
             renderer.draw_hud(size, scale, devices, config)?;
         }
-        Ok(())
+        unsafe {
+            SetWindowPos(
+                self.hwnd,
+                HWND_TOPMOST,
+                x,
+                y,
+                size.0 as i32,
+                size.1 as i32,
+                SWP_NOACTIVATE | SWP_SHOWWINDOW,
+            )
+        }
     }
 
     pub fn hide(&self) {
